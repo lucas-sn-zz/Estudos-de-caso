@@ -1,0 +1,262 @@
+---
+title: "Estudo de caso"
+output: html_document
+
+O livro utilizado como base para a realização das análises foi o livro 'Econometria Básica - Gujarati e Porter'.
+---
+Antes de começar a análise dos dados, precisamos relembrar alguns pontos ao tratarmos de regressões. Entre elas:
+Não pode haver autocorrelação entre uma variável, ou seja, o valor de uma variável t não pode depender de sua antecessora.
+Os erros quadrádricos devem ser aleatórios.
+Os regressores não podem estar correlacionados(não pode haver alta multicolinearidade)
+
+
+#Primeiramente vamos ver se há uma correlação entre os cadidatos a regressores. Para isso faremos uma plotagem dos dad
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+dados <- read.csv('dados_problema.csv')
+plot(dados)
+```
+#Como podemos ver, existe grande correlação entre as variáveis:
+#ind_pib, ind_prod_ind e ind_papelao_ondulado.
+
+Alguns pontos que devem ser levados em consideração,são:
+ -Os dados sobre o consumo de energia industrial estão com uma amostragem baixa
+ -Consumo de energia industrial e o índice de produção industrial são variáveis correlacionadas, uma vez que uma maior produção industrial requer um maior consumo de energia.
+ -Exportação total está relacionado com o índice do PIB também. Assim, também torna-se uma variável altamente correlacionada. 
+ Portanto, para o cálculo do consumo de papelão ondulado, vamos utilizar a variável ind_pib e a variável tempo
+ 
+ 
+ 
+ 
+```{r}
+#vamos representar os dados de consumo de papelão como 10³toneladas
+dados$cons_papelao_ondulado = (dados$cons_papelao_ondulado/1000)
+#Vamos arrumar também a variável ano
+dados$ano = (dados$ano - dados$ano[1])
+
+```
+
+
+Vamos agora fazer as regressões, uma simples(explicação do consumo de papelao ondulado com base no índice do PIB) e uma múltipla(explicação do consumo de papelão com base no índice do PIB e do tempo)
+
+```{r}
+fit<- lm(dados$cons_papelao_ondulado ~ dados$ind_pib + dados$ano)
+fit2 <- lm(dados$cons_papelao_ondulado ~dados$ind_pib)
+summary(fit)
+summary(fit2)
+plot(fit)
+plot(fit2)
+
+```
+Note que em ambos os casos o intercepto é negativo, o que não faz sentido. Assim, vamos testar as regressões lineares sem intercepto.
+
+
+
+
+
+
+
+
+
+```{r}
+#testando as regressões sem intercepto
+fit3 <- lm(dados$cons_papelao_ondulado ~dados$ind_pib + dados$ano -1)
+plot(fit3)
+summary(fit3)
+fit4 <- lm(dados$cons_papelao_ondulado ~dados$ind_pib -1)
+summary(fit4)
+plot(fit4)
+```
+
+
+
+
+
+
+
+#vamos testar a regressão polinomial também uma vez que ao plotarmos índice do Pib x consumo de papelão, o formato apresentado aparenta ser o de uma parábola.
+
+
+```{r}
+fit5 <- lm(dados$cons_papelao_ondulado ~ I(dados$ind_pib^2) -1)
+plot(dados$ind_pib,dados$cons_papelao_ondulado)
+points(dados$ind_pib, predict(fit5),type = 'l', col='red')
+plot(fit5)
+summary(fit5)
+```
+
+Como podemos perceber, o nosso R² possui um valor altíssimo. Assim sendo, o índice do pib explica muito bem o consumo de papelão, o que já era esperado uma vez que o papelão é utilizado tanto no transporte quanto na armazenagem de produtos
+
+
+
+
+
+
+```{r}
+fit6 <- lm(dados$cons_papelao_ondulado ~I(dados$ind_pib^2) + dados$ano -1)
+summary(fit6)
+plot(fit6)
+```
+
+
+```{r}
+fit7 <- lm(dados$cons_papelao_ondulado ~ I(dados$ind_pib^2))
+summary(fit7)
+plot(fit7)
+
+
+
+  
+```
+
+
+
+
+Logo, selecionaremos o fit5 pois possuí um F-teste alto e seus regressões são estatisticamente significativos. 
+Logo, nosso B1 será 1.362e-03 .
+
+
+
+
+
+
+
+
+
+
+
+Vamos agora calcular o PIB para os próximos 5 anos. Para isso vamos utilizar a forma quantitativa, vamos prever a evolução do pib ao passar dos anos.
+Vamos tentar dois modelos de regressão, o linear e o polinomial. A partir da plotagem do índice do pib, os valores aparentam seguir a forma de um polinômio do segundo grau.
+
+```{r}
+#plotanto o Ano x Índice PIB
+plot(dados$ano,dados$ind_pib)
+#note que há uma tendência polinomial. Assim, vamos tentar regressões polinomiais com intercepto e sem intercepto
+#Com intercepto
+fit8 <- lm(dados$ind_pib ~ dados$ano + I(dados$ano^2))
+summary(fit8)
+plot(fit8)
+#Note que há uma autocorrelação nos regressores
+```
+
+```{r}
+fit9 <- lm(dados$ind_pib ~ I(dados$ano^2))
+summary(fit9)
+plot(fit9)
+```
+
+
+```{r}
+fit10 <- lm(dados$ind_pib ~ I(dados$ano^2) -1)
+summary(fit10)
+plot(dados$ano,dados$ind_pib)
+points(dados$ano, predict(fit10),type = 'l', col = 'blue')
+plot(fit10)
+```
+Note que nenhuma dessas regressões funcionou de modo aceitável. Isso deve-se ao fato de ter ocorrido uma mudança nos dados, como pode-se perceber a partir do ponto 13.
+Assim, os dados anteriores não serão úteis para prever as variações futuras. Faremos então uma regressão polinomial excluindo as 13 primeiras variáveis.
+
+#realizando as regressões
+```{r}
+ind_pib = dados$ind_pib[13:26]
+ind_ano = dados$ano[13:26]
+
+fit1_ <- lm(ind_pib ~ ind_ano + I(ind_ano^2))
+summary(fit1_)
+plot(fit1_)
+plot(ind_ano,ind_pib)
+points(ind_ano,predict(fit1_), type = 'l', col='blue')
+
+```
+Como podemos ver, a previsão do PIB pode ser dado por: Índice PIB = B1*ano + B2*ano²
+Logo, teremos para os próximos 5 anos os seguintes valores:
+```{r}
+pib_previsao = predict(fit1_, data.frame(ind_ano=c(26, 27, 28, 29, 30)))
+pib_previsao
+```
+
+
+
+Vamos agora utilizar esses valores para estipular o consumo de papelão nos próximos 5 anos.Os valores serão:
+```{r}
+valores <- c(651.1489^2,712.7318^2, 778.5961^2, 848.7418^2,923.1691^2)
+demanda_prev = 1.362e-03*valores
+demanda_prev = demanda_prev*1000
+demanda_prev
+
+```
+
+
+Logo,a previsão para os próximos 5 anos, serão: (577481.0, 691877.8,  825660.6,  981133.9, 1160752.5)toneladas
+
+
+#Previsão da oferta de papelão ondulado
+Faz sentido pensar que no futuro a oferta de papelão tenderá a alinhar-se com a demanda do mesmo.
+A fim de fazer essa comparação, vamos analisar países desenvolvidos e ver se há um múltiplo semelhante entre o consumo de papelão
+e o PIB.
+
+
+
+
+
+
+```{r}
+consumo_intern = c(1209.1,94.80,133.3,469.2,79.4,1265,1114.3,777,300.7,60,207.3,85.5,408.42)
+pib_intern = c(402682,36874,33933,83655,25275,321289,210299,165440,76817,13750,63306,50720,89878)
+cons_pib <- (consumo_intern*1000)/pib_intern
+cons_pib
+
+```
+Note que há uma grande variação entre os países. Uma forma de tentarmos prever o quanto será a oferta nos próximos anos é fazendo uma regressão linear, assim como foi feito nos anteriores. Note que se tratando de uma regressão, apenas 6 valores não garantem uma regressão cofiável.
+```{r}
+oferta_ond = c(27228,32547,35185,58457,61466,73251)
+oferta_ond = 12*oferta_ond
+pib = c(368.5, 410.1, 452.7, 504.3, 552.7,574.8)
+fit_oferta <- lm(oferta_ond ~ I(pib^2) -1)
+summary(fit_oferta)
+plot(pib,oferta_ond)
+plot(fit_oferta)
+points(pib,predict(fit_oferta),col = 'red', type ='l')
+
+
+
+```
+
+
+
+```{r}
+fit_oferta2 <- lm(oferta_ond ~I(pib^2) + pib -1)
+summary(fit_oferta2)
+plot(fit_oferta2)
+#Como fit_oferta é melhor que fit_oferta2, utilizaremos o fit_oferta
+#logo previsão oferta = 2.503xind_pib²
+
+
+```
+
+```{r}
+#prevendo os próximos anos, vamos utilizar como base o pib estimado anteriormente
+oferta_prev = (pib_previsao^2)*2.503
+oferta_prev
+```
+
+```{r}
+demanda_ond = c(193745, 212922, 249942, 382796, 454150, 408415)
+#vamos fazer a relação entre os dois, mas primeiro vamos multiplicar os valores da oferta em 12 para deixar em anos.
+relacao_ond = (oferta_ond)/demanda_ond 
+relacao_prev = oferta_prev/demanda_prev
+print(relacao_ond)
+print(relacao_prev)
+```
+
+
+  Como podemos ver, há um excesso na oferta tanto atual quanto o futuro. Logo, podemos concluir que a construção de uma nova fábrica não é interessante olhando pela ótica quantitativa. Porém, como o próprio texto diz, existem áreas onde o número de fábricas de papelão é baixo, o que pode ser visto como uma oportunidade.
+  Outro ponto a ser levado em consideração é o fato de que para uma melhor tomada de decisão seria interessante um maior número de dados, como por exemplo qual a previsão do PIB por UF ou uma série mais longa da oferta.
+  
+
+
+
+
+
